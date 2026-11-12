@@ -1,0 +1,216 @@
+import { Button, ComboBox, Slider, Switch } from "std-widgets.slint";
+
+export component App inherits Window {
+    width: 900px;
+    height: 620px;
+    background: #1e1e2e;
+    title: "CrossLink";
+
+    in-out property<string> connection-status: "Disconnected";
+    in-out property<string> active-device: "Windows";
+    in-out property<string> target-ip: "";
+    in-out property<bool> is-target-active: false;
+    in-out property<bool> is-transition-enabled: true;
+    in-out property<int> sensitivity: 5;
+
+    callback switch-device();
+    callback connect();
+    callback disconnect();
+    callback settings();
+    callback quit();
+
+    VerticalLayout {
+        padding: 24px;
+        spacing: 16px;
+
+        HorizontalLayout {
+            spacing: 12px;
+            alignment: start;
+
+            Text {
+                text: "CrossLink";
+                font-size: 24px;
+                font-weight: 700;
+                color: #cdd6f4;
+            }
+            Text {
+                text: "v0.1.0";
+                font-size: 12px;
+                color: #6c7086;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle {
+            background: #2a2b3c;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: #313244;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Rectangle {
+                        width: 12px;
+                        height: 12px;
+                        background: connection-status == "Connected" ? #a6e3a1 : #f38ba8;
+                        border-radius: 6px;
+                    }
+                    Text {
+                        text: connection-status;
+                        font-size: 16px;
+                        font-weight: 700;
+                        color: #cdd6f4;
+                    }
+                }
+
+                Text {
+                    text: "Active Device: " + active-device;
+                    font-size: 14px;
+                    color: #bac2de;
+                }
+
+                HorizontalLayout {
+                    spacing: 10px;
+
+                    Button {
+                        text: is-target-active ? "Return to PC" : "Switch to Android";
+                        clicked => { root.switch-device(); }
+                        width: 160px;
+                    }
+                    Button {
+                        text: "Connect";
+                        clicked => { root.connect(); }
+                        width: 120px;
+                    }
+                    Button {
+                        text: "Disconnect";
+                        clicked => { root.disconnect(); }
+                        width: 120px;
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            background: #2a2b3c;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: #313244;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+
+                Text {
+                    text: "Mouse Transition";
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #cdd6f4;
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Text {
+                        text: "Direction:";
+                        width: 120px;
+                        color: #bac2de;
+                        vertical-alignment: center;
+                    }
+                    ComboBox {
+                        model: ["Right Edge", "Left Edge", "Top Edge", "Bottom Edge"];
+                        current-index: 0;
+                        width: 160px;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Text {
+                        text: "Sensitivity:";
+                        width: 120px;
+                        color: #bac2de;
+                        vertical-alignment: center;
+                    }
+                    Slider {
+                        minimum: 1;
+                        maximum: 50;
+                        value: sensitivity;
+                        width: 160px;
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: start;
+
+                    Text {
+                        text: "Edge Switching:";
+                        width: 120px;
+                        color: #bac2de;
+                        vertical-alignment: center;
+                    }
+                    Switch {
+                        checked: is-transition-enabled;
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            background: #2a2b3c;
+            border-radius: 12px;
+            border-width: 1px;
+            border-color: #313244;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 14px;
+
+                Text {
+                    text: "Connection Details";
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: #cdd6f4;
+                }
+
+                Text {
+                    text: "Target IP: " + target-ip;
+                    font-size: 13px;
+                    color: #6c7086;
+                }
+
+                Text {
+                    text: "Latency: -- ms";
+                    font-size: 13px;
+                    color: #6c7086;
+                }
+            }
+        }
+
+        HorizontalLayout {
+            alignment: end;
+            spacing: 10px;
+
+            Button {
+                text: "Settings";
+                clicked => { root.settings(); }
+                width: 100px;
+            }
+            Button {
+                text: "Exit";
+                clicked => { root.quit(); }
+                width: 100px;
+            }
+        }
+    }
+}

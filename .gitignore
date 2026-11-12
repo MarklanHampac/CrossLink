@@ -1,0 +1,53 @@
+# CrossLink - Git ignore rules
+
+# Rust build artifacts
+host/target/
+host/Cargo.lock
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+android/gradle.properties
+android/gradlew
+android/gradlew.bat
+
+# Android Studio
+android/.idea/
+android/*.iml
+
+# Secrets
+*.keystore
+*.jks
+*.properties
+crosslink-android.keystore
+
+# Gradle cache
+*.gradle
+.gradle/
+
+# Build output
+*.apk
+*.aab
+
+# Windows specific
+Thumbs.db
+*.lnk
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/

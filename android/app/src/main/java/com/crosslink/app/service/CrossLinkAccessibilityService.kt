@@ -1,21 +1,23 @@
-package com.crosslink.app
+package com.crosslink.app.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.accessibilityservice.GestureResult
+import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Path
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.util.Log
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 class CrossLinkAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "CrossLinkAccessibility"
         var instance: CrossLinkAccessibilityService? = null
+        // Global action constants (from AccessibilityService API)
+        private const val GLOBAL_ACTION_OPEN_NOTIFICATIONS = 6
+        private const val GLOBAL_ACTION_POWER_MENU = 12
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -36,18 +38,10 @@ class CrossLinkAccessibilityService : AccessibilityService() {
                     AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
                     AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED or
                     AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-            feedbackType = AccessibilityServiceInfo.FEEDBACK_ALL_MASK or AccessibilityServiceInfo.FEEDBACK_SPOKEN
+            feedbackType = AccessibilityServiceInfo.FEEDBACK_ALL_MASK
             notificationTimeout = 100
             flags = AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
-                    AccessibilityServiceInfo.FLAG_INCLUDE_NOT_TOUCHABLE or
-                    AccessibilityServiceInfo.FLAG_RETRIEVE_WINDOW_CONTENT or
-                    AccessibilityServiceInfo.FLAG_ENABLE_ACCESSIBILITY_API or
-                    AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS or
-                    AccessibilityServiceInfo.FLAG_REQUEST_TOUCH_EXPLORATION_MODE or
-                    AccessibilityServiceInfo.FLAG_REQUEST_EXPLORATION_MODE or
-                    AccessibilityServiceInfo.FLAG_REQUEST_STYLUS_EXPLORATION_MODE or
-                    AccessibilityServiceInfo.FLAG_REQUEST_2D_ICON_SUPPORT or
-                    AccessibilityServiceInfo.FLAG_RETRIEVE_HARDWARE_TEXT
+                    AccessibilityServiceInfo.FLAG_REQUEST_TOUCH_EXPLORATION_MODE
         }
         serviceInfo = info
         Log.i(TAG, "Accessibility service connected")
@@ -60,95 +54,56 @@ class CrossLinkAccessibilityService : AccessibilityService() {
 
     fun performTap(x: Float, y: Float, callback: ((Boolean) -> Unit)? = null) {
         val path = Path().apply { moveTo(x, y) }
-        val gesture = GestureResult.Builder()
-            .addStroke(GestureResult.Stroke(path, 0, 100))
-            .build()
-        val latch = CountDownLatch(1)
-        var success = false
-
-        val gestureCallback = object : GestureResult.Callback() {
-            override fun onCompleted(gestureResult: GestureResult) {
-                success = true
-                latch.countDown()
+        val builder = GestureDescription.Builder()
+        builder.addStroke(GestureDescription.StrokeDescription(path, 0, 100))
+        val gesture = builder.build()
+        val callbackObj = object : AccessibilityService.GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription) {
                 callback?.invoke(true)
             }
 
-            override fun onFailed(gestureResult: GestureResult) {
-                latch.countDown()
+            override fun onCancelled(gestureDescription: GestureDescription) {
                 callback?.invoke(false)
             }
         }
-
-        dispatchGesture(gesture, gestureCallback, null)
-        try {
-            latch.await(2, TimeUnit.SECONDS)
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-            callback?.invoke(false)
-        }
+        dispatchGesture(gesture, callbackObj, null)
     }
 
-    fun performScroll(startX: Float, startY: Float, endX: Float, endY: Float, duration: Long, callback: ((Boolean) -> Unit)? = null) {
+    fun performScroll(startX: Float, startY: Float, endX: Float, endY: Float, duration: Long = 200, callback: ((Boolean) -> Unit)? = null) {
         val path = Path().apply {
             moveTo(startX, startY)
             lineTo(endX, endY)
         }
-        val gesture = GestureResult.Builder()
-            .addStroke(GestureResult.Stroke(path, 0, duration))
-            .build()
-        val latch = CountDownLatch(1)
-        var success = false
-
-        val gestureCallback = object : GestureResult.Callback() {
-            override fun onCompleted(gestureResult: GestureResult) {
-                success = true
-                latch.countDown()
+        val builder = GestureDescription.Builder()
+        builder.addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+        val gesture = builder.build()
+        val callbackObj = object : AccessibilityService.GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription) {
                 callback?.invoke(true)
             }
 
-            override fun onFailed(gestureResult: GestureResult) {
-                latch.countDown()
+            override fun onCancelled(gestureDescription: GestureDescription) {
                 callback?.invoke(false)
             }
         }
-
-        dispatchGesture(gesture, gestureCallback, null)
-        try {
-            latch.await(2, TimeUnit.SECONDS)
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-            callback?.invoke(false)
-        }
+        dispatchGesture(gesture, callbackObj, null)
     }
 
     fun performLongPress(x: Float, y: Float, duration: Long = 500, callback: ((Boolean) -> Unit)? = null) {
         val path = Path().apply { moveTo(x, y) }
-        val gesture = GestureResult.Builder()
-            .addStroke(GestureResult.Stroke(path, 0, duration))
-            .build()
-        val latch = CountDownLatch(1)
-        var success = false
-
-        val gestureCallback = object : GestureResult.Callback() {
-            override fun onCompleted(gestureResult: GestureResult) {
-                success = true
-                latch.countDown()
+        val builder = GestureDescription.Builder()
+        builder.addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+        val gesture = builder.build()
+        val callbackObj = object : AccessibilityService.GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription) {
                 callback?.invoke(true)
             }
 
-            override fun onFailed(gestureResult: GestureResult) {
-                latch.countDown()
+            override fun onCancelled(gestureDescription: GestureDescription) {
                 callback?.invoke(false)
             }
         }
-
-        dispatchGesture(gesture, gestureCallback, null)
-        try {
-            latch.await(2, TimeUnit.SECONDS)
-        } catch (e: InterruptedException) {
-            Thread.currentThread().interrupt()
-            callback?.invoke(false)
-        }
+        dispatchGesture(gesture, callbackObj, null)
     }
 
     fun performBack() {
@@ -164,10 +119,14 @@ class CrossLinkAccessibilityService : AccessibilityService() {
     }
 
     fun performOpenNotifications() {
-        performGlobalAction(GLOBAL_ACTION_OPEN_NOTIFICATIONS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            performGlobalAction(GLOBAL_ACTION_OPEN_NOTIFICATIONS)
+        }
     }
 
     fun performPowerDialog() {
-        performGlobalAction(GLOBAL_ACTION_POWER_MENU)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            performGlobalAction(GLOBAL_ACTION_POWER_MENU)
+        }
     }
 }

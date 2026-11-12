@@ -2,6 +2,7 @@ package com.crosslink.app.service
 
 import android.inputmethodservice.InputMethodService
 import android.os.Bundle
+import android.text.TextUtils
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.util.Log
@@ -34,30 +35,21 @@ class CrossLinkIME : InputMethodService() {
 
     fun commitText(text: String) {
         val conn = activeInputConnection ?: currentInputConnection ?: return
-        conn.commitText(text, 0, null)
-        conn.sendKeyEvent(null)
+        if (!TextUtils.isEmpty(text)) {
+            conn.commitText(text, 1)
+        }
     }
 
     fun deleteBackspace(count: Int = 1) {
         val conn = activeInputConnection ?: currentInputConnection ?: return
         repeat(count) {
-            conn.sendKeyEvent(
-                android.view.KeyEvent(
-                    0,
-                    android.view.KeyCharacterMap.empty
-                )
-            )
+            conn.sendKeyEvent(android.view.KeyEvent(0, android.view.KeyEvent.KEYCODE_DEL))
         }
     }
 
     fun performEnter() {
         val conn = activeInputConnection ?: currentInputConnection ?: return
-        conn.sendKeyEvent(
-            android.view.KeyEvent(
-                0,
-                android.view.KeyCharacterMap.empty
-            )
-        )
+        conn.sendKeyEvent(android.view.KeyEvent(0, android.view.KeyEvent.KEYCODE_ENTER))
     }
 
     override fun onDestroy() {

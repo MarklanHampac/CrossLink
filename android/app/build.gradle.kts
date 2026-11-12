@@ -46,6 +46,11 @@ android {
     }
 }
 
+repositories {
+    google()
+    mavenCentral()
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
@@ -57,10 +62,8 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
     implementation("androidx.navigation:navigation-compose:2.7.5")
-    implementation("com.google.zxing:zxing-core:3.10.1")
-    implementation("com.google.zxing:zxing-android:3.10.1")
-    implementation("com.journey:security-crypto:3.1.0")
+    implementation("com.google.zxing:core:3.5.2")
+    implementation("androidx.security:security-crypto:1.1.0-alpha03")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
-    implementation("com.github.halilozercan:compose-qrcode:1.0.4")
 }

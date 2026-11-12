@@ -1,9 +1,14 @@
-[package]
+﻿[package]
 name = "crosslink-host"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["CrossLink Developers"]
 description = "Lightweight Windows Host for CrossLink Cross-Device Input Sharing"
+
+[features]
+default = []
+# Enable Slint live-preview support for UI hot reload during development (use with SLINT_LIVE_PREVIEW=1 and slint-lsp/viewer tooling)
+live-preview = ["slint/live-preview"]
 
 [dependencies]
 slint = { version = "1.18", features = ["compat-1-18", "std"] }

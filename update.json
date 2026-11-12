@@ -1,0 +1,6 @@
+﻿{
+  "version": "0.1.0",
+  "versionCode": 1,
+  "url": "https://github.com/MarklanHampac/CrossLink/releases/latest/download/app-debug.apk",
+  "notes": "Initial OTA-configured build. For private repos, host this manifest and APK at public URLs or make release/assets accessible."
+}

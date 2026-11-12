@@ -1,48 +1,52 @@
-package com.crosslink.app.ui
+﻿package com.crosslink.app.ui
 
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
+import android.graphics.PixelFormat
+import android.os.Build
+import android.provider.Settings
+import android.view.Gravity
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.ImageView
 
-class CursorOverlay(context: Context) : FrameLayout(context) {
-    var cursorX: Float = 0f
-        set(value) {
-            field = value
-            updatePosition()
-        }
-    var cursorY: Float = 0f
-        set(value) {
-            field = value
-            updatePosition()
-        }
+object CursorOverlay {
+    private var view: ImageView? = null
+    private var wm: WindowManager? = null
+    private var params: WindowManager.LayoutParams? = null
+    @Volatile var visible: Boolean = false
 
-    init {
-        isFocusable = false
-        isFocusableInTouchMode = false
-        setWillNotDraw(false)
+    fun show(ctx: Context) {
+        if (view != null) return
+        if (!Settings.canDrawOverlays(ctx)) return
+        val wmgr = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
+        val p = WindowManager.LayoutParams(
+            40, 40, type,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        )
+        p.gravity = Gravity.TOP or Gravity.START
+        val iv = ImageView(ctx)
+        iv.setImageResource(android.R.drawable.presence_online)
+        iv.alpha = 0.85f
+        wmgr.addView(iv, p)
+        view = iv; wm = wmgr; params = p; visible = true
     }
 
-    private fun updatePosition() {
-        val params = layoutParams as? WindowManager.LayoutParams
-        if (params != null) {
-            params.x = cursorX.toInt()
-            params.y = cursorY.toInt()
-            val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-            wm?.updateViewLayout(this, params)
-        }
+    fun hide() {
+        try { view?.let { wm?.removeView(it) } } catch (_: Exception) {}
+        view = null; wm = null; params = null; visible = false
     }
 
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val paint = Paint().apply {
-            color = Color.argb(200, 255, 255, 255)
-            style = Paint.Style.STROKE
-            strokeWidth = 4f
-            isAntiAlias = true
-        }
-        canvas.drawCircle(cursorX, cursorY, 12f, paint)
+    fun update(x: Float, y: Float) {
+        val v = view ?: return
+        val p = params ?: return
+        p.x = x.toInt().coerceAtLeast(0)
+        p.y = y.toInt().coerceAtLeast(0)
+        v.post { try { wm?.updateViewLayout(v, p) } catch (_: Exception) {} }
     }
 }

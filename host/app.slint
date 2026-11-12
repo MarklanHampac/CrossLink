@@ -1,8 +1,8 @@
-import { Button, ComboBox, Slider, Switch } from "std-widgets.slint";
+﻿import { Button, LineEdit, Slider, ProgressIndicator } from "std-widgets.slint";
 
 export component App inherits Window {
-    width: 900px;
-    height: 620px;
+    width: 920px;
+    height: 760px;
     background: #1e1e2e;
     title: "CrossLink";
 
@@ -10,207 +10,98 @@ export component App inherits Window {
     in-out property<string> active-device: "Windows";
     in-out property<string> target-ip: "";
     in-out property<bool> is-target-active: false;
-    in-out property<bool> is-transition-enabled: true;
     in-out property<int> sensitivity: 5;
+    in-out property<bool> busy: false;
+    in-out property<string> busy-text: "";
+    in-out property<string> notice: "";
+    in-out property<bool> notice-error: false;
 
     callback switch-device();
     callback connect();
     callback disconnect();
-    callback settings();
+    callback discover();
     callback quit();
+    callback target-ip-changed(string);
 
     VerticalLayout {
         padding: 24px;
-        spacing: 16px;
+        spacing: 14px;
 
         HorizontalLayout {
-            spacing: 12px;
-            alignment: start;
-
-            Text {
-                text: "CrossLink";
-                font-size: 24px;
-                font-weight: 700;
-                color: #cdd6f4;
+            spacing: 12px; alignment: start;
+            Text { text: "CrossLink"; font-size: 24px; font-weight: 700; color: #cdd6f4; }
+            Text { text: "v0.1.1"; font-size: 12px; color: #6c7086; vertical-alignment: center; }
+            Rectangle { horizontal-stretch: 1; }
+            if (busy) : HorizontalLayout {
+                spacing: 8px; alignment: center;
+                ProgressIndicator { indeterminate: true; width: 120px; height: 8px; }
+                Text { text: busy-text; font-size: 12px; color: #89b4fa; vertical-alignment: center; }
             }
-            Text {
-                text: "v0.1.0";
-                font-size: 12px;
-                color: #6c7086;
-                vertical-alignment: center;
+        }
+
+        if (notice != "") : Rectangle {
+            background: notice-error ? #3b2a2f : #243427;
+            border-radius: 8px; border-width: 1px; border-color: notice-error ? #f38ba8 : #a6e3a1;
+            HorizontalLayout {
+                padding: 10px; spacing: 8px;
+                Text { text: notice-error ? "✖" : "✔"; color: notice-error ? #f38ba8 : #a6e3a1; font-size: 14px; vertical-alignment: center; }
+                Text { text: notice; color: #cdd6f4; font-size: 13px; wrap: word-wrap; vertical-alignment: center; }
             }
         }
 
         Rectangle {
-            background: #2a2b3c;
-            border-radius: 12px;
-            border-width: 1px;
-            border-color: #313244;
-
+            background: #2a2b3c; border-radius: 12px; border-width: 1px; border-color: #313244;
             VerticalLayout {
-                padding: 20px;
-                spacing: 14px;
-
+                padding: 20px; spacing: 14px;
                 HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-
-                    Rectangle {
-                        width: 12px;
-                        height: 12px;
-                        background: connection-status == "Connected" ? #a6e3a1 : #f38ba8;
-                        border-radius: 6px;
+                    spacing: 12px; alignment: start;
+                    Rectangle { width: 12px; height: 12px; border-radius: 6px;
+                        background: busy ? #f9e2af : (connection-status == "Connected" ? #a6e3a1 : #f38ba8);
                     }
-                    Text {
-                        text: connection-status;
-                        font-size: 16px;
-                        font-weight: 700;
-                        color: #cdd6f4;
-                    }
+                    Text { text: "Status: " + connection-status; font-size: 16px; font-weight: 700; color: #cdd6f4; }
                 }
-
-                Text {
-                    text: "Active Device: " + active-device;
-                    font-size: 14px;
-                    color: #bac2de;
+                Text { text: "Active Device: " + active-device; font-size: 14px; color: #bac2de; }
+                HorizontalLayout {
+                    spacing: 10px; alignment: start;
+                    Text { text: "Phone IP:"; color: #bac2de; vertical-alignment: center; width: 70px; }
+                    LineEdit { text: target-ip; placeholder-text: "192.168.1.x:8888"; width: 240px; enabled: !busy; edited(t) => { root.target-ip-changed(t); } }
+                    Button { text: "Discover"; enabled: !busy; clicked => { root.discover(); } width: 100px; }
+                    Button { text: "Connect"; enabled: !busy; clicked => { root.connect(); } width: 100px; }
                 }
-
                 HorizontalLayout {
                     spacing: 10px;
-
-                    Button {
-                        text: is-target-active ? "Return to PC" : "Switch to Android";
-                        clicked => { root.switch-device(); }
-                        width: 160px;
-                    }
-                    Button {
-                        text: "Connect";
-                        clicked => { root.connect(); }
-                        width: 120px;
-                    }
-                    Button {
-                        text: "Disconnect";
-                        clicked => { root.disconnect(); }
-                        width: 120px;
-                    }
+                    Button { text: "Disconnect"; enabled: !busy; clicked => { root.disconnect(); } width: 110px; }
+                    Button { text: is-target-active ? "Return to PC (Esc)" : "Switch to Android"; enabled: !busy; clicked => { root.switch-device(); } width: 190px; }
                 }
             }
         }
 
         Rectangle {
-            background: #2a2b3c;
-            border-radius: 12px;
-            border-width: 1px;
-            border-color: #313244;
-
+            background: #2a2b3c; border-radius: 12px; border-width: 1px; border-color: #313244;
             VerticalLayout {
-                padding: 20px;
-                spacing: 14px;
-
-                Text {
-                    text: "Mouse Transition";
-                    font-size: 16px;
-                    font-weight: 700;
-                    color: #cdd6f4;
-                }
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-
-                    Text {
-                        text: "Direction:";
-                        width: 120px;
-                        color: #bac2de;
-                        vertical-alignment: center;
-                    }
-                    ComboBox {
-                        model: ["Right Edge", "Left Edge", "Top Edge", "Bottom Edge"];
-                        current-index: 0;
-                        width: 160px;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-
-                    Text {
-                        text: "Sensitivity:";
-                        width: 120px;
-                        color: #bac2de;
-                        vertical-alignment: center;
-                    }
-                    Slider {
-                        minimum: 1;
-                        maximum: 50;
-                        value: sensitivity;
-                        width: 160px;
-                    }
-                }
-
-                HorizontalLayout {
-                    spacing: 12px;
-                    alignment: start;
-
-                    Text {
-                        text: "Edge Switching:";
-                        width: 120px;
-                        color: #bac2de;
-                        vertical-alignment: center;
-                    }
-                    Switch {
-                        checked: is-transition-enabled;
-                    }
-                }
+                padding: 20px; spacing: 10px;
+                Text { text: "Setup & Troubleshooting"; font-size: 16px; font-weight: 700; color: #cdd6f4; }
+                Text { text: "1. Phone: open app, enable Accessibility + set CrossLink as keyboard, grant Overlay permission, tap Show Cursor."; font-size: 12px; color: #bac2de; wrap: word-wrap; }
+                Text { text: "2. Same Wi-Fi/LAN (no guest/AP isolation, VPN off). Phone shows its IP."; font-size: 12px; color: #bac2de; wrap: word-wrap; }
+                Text { text: "3. Discover (UDP 8889) or enter IP, then Connect (TCP 8888). Allow Windows Firewall (Private) for ports 8888/8889."; font-size: 12px; color: #bac2de; wrap: word-wrap; }
+                Text { text: "4. Keep phone app foreground/listening. If blocked, try manual IP and check router isolation."; font-size: 12px; color: #bac2de; wrap: word-wrap; }
+                Text { text: "5. Move mouse to right edge to control phone; Esc returns to PC."; font-size: 12px; color: #bac2de; wrap: word-wrap; }
             }
         }
 
         Rectangle {
-            background: #2a2b3c;
-            border-radius: 12px;
-            border-width: 1px;
-            border-color: #313244;
-
+            background: #2a2b3c; border-radius: 12px; border-width: 1px; border-color: #313244;
             VerticalLayout {
-                padding: 20px;
-                spacing: 14px;
-
-                Text {
-                    text: "Connection Details";
-                    font-size: 16px;
-                    font-weight: 700;
-                    color: #cdd6f4;
-                }
-
-                Text {
-                    text: "Target IP: " + target-ip;
-                    font-size: 13px;
-                    color: #6c7086;
-                }
-
-                Text {
-                    text: "Latency: -- ms";
-                    font-size: 13px;
-                    color: #6c7086;
+                padding: 20px; spacing: 10px;
+                Text { text: "Edge sensitivity"; font-size: 16px; font-weight: 700; color: #cdd6f4; }
+                HorizontalLayout {
+                    spacing: 12px; alignment: start;
+                    Text { text: "Sensitivity:"; width: 120px; color: #bac2de; vertical-alignment: center; }
+                    Slider { minimum: 1; maximum: 50; value: sensitivity; width: 200px; changed(v) => { root.sensitivity = Math.round(v); } }
                 }
             }
         }
 
-        HorizontalLayout {
-            alignment: end;
-            spacing: 10px;
-
-            Button {
-                text: "Settings";
-                clicked => { root.settings(); }
-                width: 100px;
-            }
-            Button {
-                text: "Exit";
-                clicked => { root.quit(); }
-                width: 100px;
-            }
-        }
+        HorizontalLayout { alignment: end; Button { text: "Exit"; clicked => { root.quit(); } width: 100px; } }
     }
 }

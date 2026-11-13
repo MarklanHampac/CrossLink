@@ -6,7 +6,8 @@ mod protocol;
 mod security;
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use slint::ComponentHandle;
 use windows_sys::Win32::Foundation::{LRESULT, WPARAM};
@@ -30,20 +31,53 @@ pub static NOTICE: Mutex<String> = Mutex::new(String::new());
 pub static NOTICE_ERROR: AtomicBool = AtomicBool::new(false);
 pub static BUSY: AtomicBool = AtomicBool::new(false);
 pub static BUSY_TEXT: Mutex<String> = Mutex::new(String::new());
+pub static LAST_ACTION: Mutex<String> = Mutex::new(String::new());
+pub static LAST_ACTION_AT: LazyLock<Mutex<std::time::Instant>> = LazyLock::new(|| Mutex::new(std::time::Instant::now()));
+pub static LOG_LINES: LazyLock<Mutex<Vec<String>>> = LazyLock::new(|| Mutex::new(Vec::new()));
 
 slint::include_modules!();
 
-pub(crate) fn set_status(s: &str) { if let Ok(mut g) = CONNECTION_STATUS.lock() { *g = s.to_string(); } }
-fn set_device(d: &str) { if let Ok(mut g) = ACTIVE_DEVICE.lock() { *g = d.to_string(); } }
+fn now_ts() -> String {
+    let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let s = secs % 86400;
+    format!("{:02}:{:02}:{:02}", s / 3600, (s % 3600) / 60, s % 60)
+}
+pub(crate) fn log_event(msg: &str) {
+    let line = format!("[{}] {}", now_ts(), msg);
+    eprintln!("{}", line);
+    if let Ok(mut lines) = LOG_LINES.lock() {
+        lines.push(line);
+        if lines.len() > 400 {
+            let drain = lines.len() - 400;
+            lines.drain(0..drain);
+        }
+    }
+}
+
+pub(crate) fn set_status(s: &str) {
+    if let Ok(mut g) = CONNECTION_STATUS.lock() { *g = s.to_string(); }
+    log_event(&format!("Status -> {}", s));
+}
+fn set_device(d: &str) {
+    if let Ok(mut g) = ACTIVE_DEVICE.lock() { *g = d.to_string(); }
+    log_event(&format!("Active device -> {}", d));
+}
 pub(crate) fn set_notice(msg: &str, is_error: bool) {
     if let Ok(mut n) = NOTICE.lock() { *n = msg.to_string(); }
     NOTICE_ERROR.store(is_error, Ordering::Relaxed);
+    log_event(&format!("{}: {}", if is_error { "ERROR" } else { "INFO" }, msg));
 }
 fn set_busy(busy: bool, text: &str) {
     BUSY.store(busy, Ordering::Relaxed);
     if let Ok(mut t) = BUSY_TEXT.lock() { *t = text.to_string(); }
+    if busy && !text.is_empty() { log_event(&format!("Busy -> {}", text)); }
 }
 fn clear_busy() { set_busy(false, ""); }
+fn register_action(action: &str) {
+    if let Ok(mut a) = LAST_ACTION.lock() { *a = action.to_string(); }
+    if let Ok(mut t) = LAST_ACTION_AT.lock() { *t = std::time::Instant::now(); }
+    log_event(&format!("Action: {}", action));
+}
 
 fn switch_to_android() {
     TARGET_ACTIVE.store(true, Ordering::Relaxed);
@@ -137,14 +171,23 @@ fn main() {
 
     app.on_target_ip_changed(|ip| { if let Ok(mut t) = TARGET_IP.lock() { *t = ip.to_string(); } });
 
+    app.on_clear_log(move || {
+        register_action("Clear Log clicked");
+        if let Ok(mut lines) = LOG_LINES.lock() { lines.clear(); }
+        log_event("Log cleared.");
+    });
+
     app.on_switch_device({
         let w = weak.clone();
         move || {
             if TARGET_ACTIVE.load(Ordering::Relaxed) {
+                register_action("Return to PC clicked");
                 switch_to_windows();
             } else if is_connected() {
+                register_action("Switch to Android clicked");
                 switch_to_android();
             } else {
+                register_action("Switch to Android clicked");
                 set_notice("Cannot switch: not connected to Android.", true);
             }
             if let Some(a) = w.upgrade() { a.set_is_target_active(TARGET_ACTIVE.load(Ordering::Relaxed)); }
@@ -152,6 +195,7 @@ fn main() {
     });
 
     app.on_discover(move || {
+        register_action("Discover clicked");
         set_busy(true, "Discovering devices on LAN (UDP 8889)...");
         set_status("Discovering...");
         set_notice("Searching for CrossLink on local network...", false);
@@ -169,6 +213,7 @@ fn main() {
     });
 
     app.on_connect(move || {
+        register_action("Connect clicked");
         let ipraw = TARGET_IP.lock().unwrap().clone();
         let (ip, port) = match ipraw.rsplit_once(':') {
             Some((i, p)) => (i.trim().to_string(), p.parse().unwrap_or(8888u16)),
@@ -194,6 +239,7 @@ fn main() {
     });
 
     app.on_disconnect(move || {
+        register_action("Disconnect clicked");
         set_busy(true, "Disconnecting...");
         disconnect();
         switch_to_windows();
@@ -202,7 +248,7 @@ fn main() {
         clear_busy();
     });
 
-    app.on_quit(|| { disconnect(); std::process::exit(0); });
+    app.on_quit(|| { register_action("Exit clicked"); disconnect(); std::process::exit(0); });
 
     let w = weak.clone();
     std::thread::spawn(move || loop {
@@ -216,6 +262,15 @@ fn main() {
             app.set_busy_text(BUSY_TEXT.lock().unwrap().as_str().into());
             app.set_notice(NOTICE.lock().unwrap().as_str().into());
             app.set_notice_error(NOTICE_ERROR.load(Ordering::Relaxed));
+            let last_action = LAST_ACTION.lock().unwrap().clone();
+            app.set_last_action(last_action.as_str().into());
+            let pulse = LAST_ACTION_AT
+                .lock()
+                .map(|t| t.elapsed() < std::time::Duration::from_millis(1200))
+                .unwrap_or(false);
+            app.set_last_action_pulse(pulse);
+            let log_text = LOG_LINES.lock().map(|v| v.join("\n")).unwrap_or_default();
+            app.set_log_text(log_text.as_str().into());
         }
     });
 

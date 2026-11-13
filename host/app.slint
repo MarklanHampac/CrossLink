@@ -1,8 +1,8 @@
 ﻿import { Button, LineEdit, Slider, ProgressIndicator } from "std-widgets.slint";
 
 export component App inherits Window {
-    width: 920px;
-    height: 760px;
+    width: 980px;
+    height: 900px;
     background: #1e1e2e;
     title: "CrossLink";
 
@@ -15,12 +15,16 @@ export component App inherits Window {
     in-out property<string> busy-text: "";
     in-out property<string> notice: "";
     in-out property<bool> notice-error: false;
+    in-out property<string> last-action: "";
+    in-out property<bool> last-action-pulse: false;
+    in-out property<string> log-text: "";
 
     callback switch-device();
     callback connect();
     callback disconnect();
     callback discover();
     callback quit();
+    callback clear-log();
     callback target-ip-changed(string);
 
     VerticalLayout {
@@ -39,9 +43,22 @@ export component App inherits Window {
             }
         }
 
+        if (last-action != "") : Rectangle {
+            background: last-action-pulse ? #2b3f5a : #223047;
+            border-radius: 8px; border-width: 1px; border-color: last-action-pulse ? #89b4fa : #3b4f6b;
+            animate background { duration: 180ms; easing: ease-in-out; }
+            animate border-color { duration: 180ms; easing: ease-in-out; }
+            HorizontalLayout {
+                padding: 8px; spacing: 8px; alignment: start;
+                Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #89b4fa; }
+                Text { text: "Action registered: " + last-action; color: #b4d0ff; font-size: 12px; wrap: word-wrap; }
+            }
+        }
+
         if (notice != "") : Rectangle {
             background: notice-error ? #3b2a2f : #243427;
             border-radius: 8px; border-width: 1px; border-color: notice-error ? #f38ba8 : #a6e3a1;
+            animate background { duration: 180ms; easing: ease-in-out; }
             HorizontalLayout {
                 padding: 10px; spacing: 8px;
                 Text { text: notice-error ? "✖" : "✔"; color: notice-error ? #f38ba8 : #a6e3a1; font-size: 14px; vertical-alignment: center; }
@@ -65,8 +82,8 @@ export component App inherits Window {
                     spacing: 10px; alignment: start;
                     Text { text: "Phone IP:"; color: #bac2de; vertical-alignment: center; width: 70px; }
                     LineEdit { text: target-ip; placeholder-text: "192.168.1.x:8888"; width: 240px; enabled: !busy; edited(t) => { root.target-ip-changed(t); } }
-                    Button { text: "Discover"; enabled: !busy; clicked => { root.discover(); } width: 100px; }
-                    Button { text: "Connect"; enabled: !busy; clicked => { root.connect(); } width: 100px; }
+                    Button { text: busy && busy-text == "Discovering devices on LAN (UDP 8889)..." ? "Discovering..." : "Discover"; enabled: !busy; clicked => { root.discover(); } width: 110px; }
+                    Button { text: busy && busy-text != "Discovering devices on LAN (UDP 8889)..." && connection-status == "Connecting..." ? "Connecting..." : "Connect"; enabled: !busy; clicked => { root.connect(); } width: 110px; }
                 }
                 HorizontalLayout {
                     spacing: 10px;
@@ -98,6 +115,34 @@ export component App inherits Window {
                     spacing: 12px; alignment: start;
                     Text { text: "Sensitivity:"; width: 120px; color: #bac2de; vertical-alignment: center; }
                     Slider { minimum: 1; maximum: 50; value: sensitivity; width: 200px; changed(v) => { root.sensitivity = Math.round(v); } }
+                }
+            }
+        }
+
+        Rectangle {
+            background: #2a2b3c; border-radius: 12px; border-width: 1px; border-color: #313244;
+            vertical-stretch: 1;
+            VerticalLayout {
+                padding: 12px; spacing: 8px;
+                HorizontalLayout {
+                    spacing: 8px; alignment: start;
+                    Text { text: "Event Log"; font-size: 15px; font-weight: 700; color: #cdd6f4; }
+                    Rectangle { horizontal-stretch: 1; }
+                    Button { text: "Clear Log"; clicked => { root.clear-log(); } width: 100px; }
+                }
+                Rectangle {
+                    background: #11111b; border-radius: 8px; border-width: 1px; border-color: #313244;
+                    vertical-stretch: 1;
+                    Flickable {
+                        viewport-height: log-content.preferred-height;
+                        viewport-width: log-content.preferred-width;
+                        log-content := Text {
+                            x: 8px; y: 8px;
+                            width: max(parent.width - 16px, self.preferred-width);
+                            text: log-text == "" ? "No events yet. Press a button to see activity." : log-text;
+                            color: #a6adc8; font-size: 12px; font-family: "Consolas"; wrap: no-wrap;
+                        }
+                    }
                 }
             }
         }

@@ -36,18 +36,28 @@ class InputReceiverServer(
         if (!running.compareAndSet(false, true)) return
         scope.launch {
             try {
-                serverSocket = ServerSocket(port)
+                serverSocket = java.net.ServerSocket().apply {
+                    reuseAddress = true
+                    bind(java.net.InetSocketAddress("0.0.0.0", port))
+                }
                 Log.i(TAG, "Server started on $port")
-                onStatus("Listening on :$port")
+                onStatus("Listening on 0.0.0.0:$port")
                 while (running.get()) {
-                    val client = try { serverSocket?.accept() } catch (_: Exception) { null } ?: break
-                    onStatus("Client connected")
+                    val client = try { serverSocket?.accept() } catch (e: Exception) {
+                        if (running.get()) onStatus("Accept error: ${e.message}")
+                        null
+                    } ?: if (running.get()) continue else break
+                    val addr = try { client.inetAddress?.hostAddress ?: "?" } catch (_: Exception) { "?" }
+                    Log.i(TAG, "Client connected: $addr")
+                    onStatus("Client connected: $addr")
                     handleClient(client)
-                    onStatus("Listening on :$port")
+                    if (running.get()) onStatus("Listening on 0.0.0.0:$port")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Server error", e)
-                onStatus("Server error: ${e.message}")
+                onStatus("Server error: ${e.message}. Check app permissions/network and that port $port is free.")
+            } finally {
+                if (running.get()) onStatus("Server stopped")
             }
         }
     }
@@ -104,7 +114,7 @@ class InputReceiverServer(
         } finally {
             try { socket.close() } catch (_: Exception) {}
             peerName = null
-            onStatus("Disconnected")
+            onStatus("Client disconnected. Listening on 0.0.0.0:$port")
         }
     }
 

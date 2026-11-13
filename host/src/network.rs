@@ -101,9 +101,11 @@ fn read_packet(stream: &mut TcpStream, cipher: &Aes256Gcm) -> Result<InputPacket
 }
 
 pub fn connect_to_android(ip: &str, port: u16) -> Result<(), String> {
+    crate::log_event(&format!("TCP: connecting to {}:{}...", ip, port));
     let mut stream = TcpStream::connect((ip, port)).map_err(|e| format!("TCP connect to {}:{} failed: {}", ip, port, e))?;
     stream.set_nodelay(true).ok();
     stream.set_read_timeout(Some(Duration::from_secs(5))).ok();
+    crate::log_event("TCP: socket connected, sending handshake...");
 
     let mut my_pub = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut my_pub);
@@ -127,6 +129,7 @@ pub fn connect_to_android(ip: &str, port: u16) -> Result<(), String> {
     let mut peer_pub = [0u8; 32];
     read_exact(&mut stream, &mut peer_pub)?;
     let peer_name = String::from_utf8_lossy(&pname).to_string();
+    crate::log_event(&format!("Handshake: peer='{}' version={}", peer_name, ver[0]));
 
     let cipher = derive_key(&my_pub, &peer_pub)?;
     *cipher_store().lock().unwrap() = Some(cipher.clone());
@@ -139,7 +142,7 @@ pub fn connect_to_android(ip: &str, port: u16) -> Result<(), String> {
     *last_target().lock().unwrap() = target.clone();
     set_connected(true, Some(target.clone()));
     crate::set_notice(&format!("Connected to {} ({}).", peer_name, target), false);
-    eprintln!("Connected to {} as {}", target, peer_name);
+    crate::log_event(&format!("Connected to {} as {}", target, peer_name));
 
     thread::spawn(move || receive_loop(stream, cipher, target));
     Ok(())
@@ -166,6 +169,7 @@ fn receive_loop(mut stream: TcpStream, cipher: Aes256Gcm, target: String) {
     }
     set_connected(false, None);
     let msg = reason.unwrap_or_else(|| "disconnected".to_string());
+    crate::log_event(&format!("Disconnected from {}: {}", target, msg));
     crate::set_notice(&format!("Disconnected from {}: {}", target, msg), true);
 }
 

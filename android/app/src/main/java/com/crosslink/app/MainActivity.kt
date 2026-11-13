@@ -36,10 +36,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val statusState = mutableStateOf("Starting...")
+        val statusState = mutableStateOf("Starting server...")
         server = InputReceiverServer(8888) { s -> runOnUiThread { statusState.value = s } }
         server?.start()
-        discovery = DiscoveryResponder(8889).also { it.start() }
+        discovery = DiscoveryResponder(applicationContext, 8889).also { it.start() }
+        if (discovery?.lastError != null) statusState.value = "Discovery error: ${discovery?.lastError}"
 
         setContent {
             MaterialTheme {

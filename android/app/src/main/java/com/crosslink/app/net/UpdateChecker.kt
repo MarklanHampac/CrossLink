@@ -1,4 +1,4 @@
-﻿package com.crosslink.app.net
+package com.crosslink.app.net
 
 import android.os.Build
 import org.json.JSONObject
@@ -26,7 +26,7 @@ object UpdateChecker {
             val body = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.readText().orEmpty()
             conn.disconnect()
             if (code !in 200..299) {
-                return Result("Update check failed (HTTP $code). Verify MANIFEST_URL is reachable and points to a valid update.json.")
+                return Result("Update check failed (HTTP $code). For private GitHub repos raw/asset URLs need auth and return 404/403 in-app. Host update.json and APK on a public HTTPS URL (or make repo/release public) and update MANIFEST_URL.")
             }
             val j = JSONObject(body)
             val latestCode = j.optInt("versionCode", -1)
